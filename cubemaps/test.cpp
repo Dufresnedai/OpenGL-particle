@@ -232,7 +232,7 @@ int main()
     unsigned int cubeTexture = loadTexture(std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\container.jpg").string().c_str());
 
     std::vector<std::string> faces{
-        std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\back.jpg").string(),
+        std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\right.jpg").string(),
         std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\left.jpg").string(),
         std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\top.jpg").string(),
         std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\bottom.jpg").string(),
