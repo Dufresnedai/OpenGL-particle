@@ -34,6 +34,36 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// 全局变量保存窗口信息
+GLFWwindow *window;
+bool isFullscreen = false;                     // 当前模式：全屏/窗口
+int windowedWidth = 800, windowedHeight = 600; // 窗口模式下的宽高
+int windowedPosX, windowedPosY;                // 窗口模式下的位置
+// 按键回调函数
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_F && action == GLFW_PRESS)
+    { // 按下 F 键切换模式
+        isFullscreen = !isFullscreen;
+        if (isFullscreen)
+        {
+            // 切换到全屏模式
+            GLFWmonitor *monitor = glfwGetPrimaryMonitor();      // 获取主显示器
+            const GLFWvidmode *mode = glfwGetVideoMode(monitor); // 获取显示器模式
+            // 记录窗口模式下的位置和大小
+            glfwGetWindowPos(window, &windowedPosX, &windowedPosY);
+            glfwGetWindowSize(window, &windowedWidth, &windowedHeight);
+            // 设置全屏模式
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        }
+        else
+        {
+            // 切换回窗口模式
+            glfwSetWindowMonitor(window, nullptr, windowedPosX, windowedPosY, windowedWidth, windowedHeight, 0);
+        }
+    }
+}
+
 int main()
 {
     // glfw: initialize and configure
@@ -49,7 +79,8 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    // GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    window = glfwCreateWindow(windowedWidth, windowedHeight, "Window and Fullscreen Switch", nullptr, nullptr);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -58,6 +89,7 @@ int main()
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
