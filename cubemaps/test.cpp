@@ -12,6 +12,7 @@
 #include <learnopengl/model.h>
 #include <filesystem>
 #include <iostream>
+// #include "snow_particle.h"
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
@@ -39,6 +40,143 @@ GLFWwindow *window;
 bool isFullscreen = false;                     // 当前模式：全屏/窗口
 int windowedWidth = 800, windowedHeight = 600; // 窗口模式下的宽高
 int windowedPosX, windowedPosY;                // 窗口模式下的位置
+
+// 雪花粒子着色器
+const char *vertexShaderSource = R"GLSL(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+uniform mat4 projection;
+uniform mat4 view;
+uniform mat4 model;
+void main()
+{
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
+    gl_PointSize = 40.0; // 调整雪花大小
+}
+)GLSL";
+
+const char *fragmentShaderSource = R"GLSL(
+#version 330 core
+out vec4 FragColor;
+uniform sampler2D snowflakeTexture;
+void main()
+{
+    FragColor = texture(snowflakeTexture, gl_PointCoord);
+}
+)GLSL";
+
+struct Particle
+{
+    glm::vec3 position;
+    float speed;
+};
+
+unsigned int WIDTH = 800;
+unsigned int HEIGHT = 600;
+const unsigned int NUM_PARTICLES = 600;
+std::vector<Particle> particles;
+unsigned int VAO, VBO, texture;
+
+// 初始化粒子位置和速度
+void initParticles()
+{
+    srand(static_cast<unsigned int>(time(0)));
+    for (unsigned int i = 0; i < NUM_PARTICLES; ++i)
+    {
+        particles.push_back({
+            glm::vec3((rand() % 200 - 100) / 100.0f,  // X: 在-1.0和1.0之间随机
+                      (rand() % 200) / 100.0f + 1.0f, // Y: 在1.0和3.0之间随机
+                      (rand() % 200 - 100) / 100.0f), // Z: 在-1.0和1.0之间随机
+            0.001f + (rand() % 100) / 1000000.0f      // 控制速度
+        });
+    }
+}
+
+// 更新粒子位置，超出屏幕则重置位置，使其从屏幕顶部重新下落，X 和 Z 方向随机，Y 方向在屏幕顶部
+void updateParticles()
+{
+    for (auto &particle : particles)
+    {
+        particle.position.y -= particle.speed;
+        if (particle.position.y < -1.0f)
+        {
+            particle.position.y = 1.0f;
+            particle.position.x = (rand() % 200 - 100) / 100.0f;
+            particle.position.z = (rand() % 200 - 100) / 100.0f;
+        }
+    }
+}
+
+// 初始化OpenGL
+void initOpenGL()
+{
+    std::vector<float> positions;
+    for (const auto &particle : particles)
+    {
+        positions.push_back(particle.position.x);
+        positions.push_back(particle.position.y);
+        positions.push_back(particle.position.z);
+    }
+
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(float), positions.data(), GL_DYNAMIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+}
+
+// 编译着色器
+unsigned int compileShader(unsigned int type, const char *source)
+{
+    unsigned int shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+    int success;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        char infoLog[512];
+        glGetShaderInfoLog(shader, 512, nullptr, infoLog);
+        std::cerr << "ERROR: Shader Compilation Failed\n"
+                  << infoLog << std::endl;
+    }
+    return shader;
+}
+
+// 创建着色器程序
+unsigned int createShaderProgram()
+{
+    unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
+    unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+
+    unsigned int shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    int success;
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        char infoLog[512];
+        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
+        std::cerr << "ERROR: Shader Program Linking Failed\n"
+                  << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    return shaderProgram;
+}
 
 GLFWcursor *createCursor(const char *imagePath)
 {
@@ -134,9 +272,13 @@ int main()
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_PROGRAM_POINT_SIZE);
 
+    initParticles();
+    initOpenGL();
     // build and compile shaders
     // -------------------------
+    unsigned int shaderProgram = createShaderProgram();
     Shader shader("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\6.1.cubemaps.vs",
                   "D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\6.1.cubemaps.fs");
     Shader skyboxShader("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\6.1.skybox.vs",
@@ -254,6 +396,9 @@ int main()
 
     // load textures
     // -------------
+
+    texture = loadTexture("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\snowman.png"); // Replace with your snowflake texture path
+
     unsigned int cubeTexture = loadTexture(std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\container.jpg").string().c_str());
 
     std::vector<std::string> faces{
@@ -273,6 +418,13 @@ int main()
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)WIDTH / HEIGHT, 0.1f, 100.0f);
+    // glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
+    glm::vec3 cameraPos(0.0f, 0.0f, -0.5f);   // 摄像机位置
+    glm::vec3 cameraFront(0.0f, -1.0f, 1.0f); // 摄像机的朝向
+    glm::vec3 up(0.25f, 0.5f, 0.5f);          // 摄像机的上方向
+
+    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, up);
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -291,6 +443,35 @@ int main()
         // ------
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        updateParticles();
+
+        std::vector<float> positions;
+        for (const auto &particle : particles)
+        {
+            positions.push_back(particle.position.x);
+            positions.push_back(particle.position.y);
+            positions.push_back(particle.position.z);
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(float), positions.data());
+        glUseProgram(shaderProgram);
+
+        unsigned int projectionLoc = glGetUniformLocation(shaderProgram, "projection");
+        unsigned int viewLoc = glGetUniformLocation(shaderProgram, "view");
+        unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
+
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glUniform1i(glGetUniformLocation(shaderProgram, "snowflakeTexture"), 0);
+
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_POINTS, 0, NUM_PARTICLES);
+        glBindVertexArray(0);
 
         // draw scene as normal
         shader.use();
@@ -330,6 +511,9 @@ int main()
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
     // glDeleteVertexArrays(1, &cubeVAO);
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteProgram(shaderProgram);
     glDeleteVertexArrays(1, &skyboxVAO);
     // glDeleteBuffers(1, &cubeVBO);
     glDeleteBuffers(1, &skyboxVBO);
