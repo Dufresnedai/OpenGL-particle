@@ -39,6 +39,24 @@ GLFWwindow *window;
 bool isFullscreen = false;                     // 当前模式：全屏/窗口
 int windowedWidth = 800, windowedHeight = 600; // 窗口模式下的宽高
 int windowedPosX, windowedPosY;                // 窗口模式下的位置
+
+GLFWcursor *createCursor(const char *imagePath)
+{
+    int width, height, channels;
+    unsigned char *data = stbi_load(imagePath, &width, &height, &channels, 0);
+    if (!data)
+    {
+        std::cout << "Failed to load cursor image!" << std::endl;
+        return nullptr;
+    }
+
+    GLFWimage cursorImage = {width, height, data};
+    GLFWcursor *cursor = glfwCreateCursor(&cursorImage, 0, 0);
+
+    stbi_image_free(data); // 释放图像数据
+    return cursor;
+}
+
 // 按键回调函数
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
@@ -95,9 +113,16 @@ int main()
 
     // tell GLFW to capture our mouse
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);              // 显示光标
-    glfwSetCursor(window, glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR)); // 十字光标
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); // 显示光标
+    // glfwSetCursor(window, glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR)); // 十字光标
 
+    // 加载自定义光标
+    GLFWcursor *customCursor = createCursor("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\mc_j.png");
+
+    if (customCursor)
+    {
+        glfwSetCursor(window, customCursor); // 设置自定义光标
+    }
     // glad: load all OpenGL function pointers
     // ---------------------------------------
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -207,16 +232,16 @@ int main()
         1.0f, -1.0f, 1.0f};
 
     // cube VAO
-    unsigned int cubeVAO, cubeVBO;
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glBindVertexArray(cubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    // unsigned int cubeVAO, cubeVBO;
+    // glGenVertexArrays(1, &cubeVAO);
+    // glGenBuffers(1, &cubeVBO);
+    // glBindVertexArray(cubeVAO);
+    // glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
+    // glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    // glEnableVertexAttribArray(1);
+    // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
     // skybox VAO
     unsigned int skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
@@ -276,7 +301,7 @@ int main()
         shader.setMat4("view", view);
         shader.setMat4("projection", projection);
         // cubes
-        glBindVertexArray(cubeVAO);
+        // glBindVertexArray(cubeVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -304,9 +329,9 @@ int main()
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &cubeVAO);
+    // glDeleteVertexArrays(1, &cubeVAO);
     glDeleteVertexArrays(1, &skyboxVAO);
-    glDeleteBuffers(1, &cubeVBO);
+    // glDeleteBuffers(1, &cubeVBO);
     glDeleteBuffers(1, &skyboxVBO);
 
     glfwTerminate();
