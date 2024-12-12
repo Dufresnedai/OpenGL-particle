@@ -397,7 +397,7 @@ int main()
     // load textures
     // -------------
 
-    texture = loadTexture("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\snowman.png"); // Replace with your snowflake texture path
+    texture = loadTexture("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\snow.png"); // Replace with your snowflake texture path
 
     unsigned int cubeTexture = loadTexture(std::filesystem::path("D:\\OpenGL\\particle\\OpenGLparticle\\cubemaps\\resources\\textures\\skybox\\container.jpg").string().c_str());
 
