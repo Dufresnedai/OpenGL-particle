@@ -4,7 +4,7 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-
+#include <algorithm> 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement
 {
@@ -76,6 +76,10 @@ public:
             Position -= Right * velocity;
         if (direction == RIGHT)
             Position += Right * velocity;
+        // ADD: limit the space
+        Position.x = std::clamp(Position.x, -30.0f, 30.0f);
+        Position.y = std::clamp(Position.y, -30.0f, 30.0f);
+        Position.z = std::clamp(Position.z, -30.0f, 30.0f);
     }
 
     // processes input received from a mouse input system. Expects the offset value in both the x and y direction.

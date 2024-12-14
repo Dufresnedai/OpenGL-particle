@@ -55,7 +55,7 @@ public:
                 particles[i].velocity = glm::vec3(x, y, z) * (0.5f + static_cast<float>(rand()) / RAND_MAX * 40.0f);
 
                 particles[i].color = color;
-                particles[i].lifetime = 0.625f;
+                particles[i].lifetime = 0.75f;
                 break;
             }
         }
@@ -66,7 +66,7 @@ public:
             if (particles[i].lifetime > 0.0f) {
                 particles[i].lifetime -= deltaTime;
                 // 假设粒子的加速度为重力加速度
-                glm::vec3 gravity(0.0f, -3.0f, 0.0f); // 重力加速度，向下
+                glm::vec3 gravity(0.0f, -20.0f, 0.0f); // 重力加速度，向下
                 particles[i].velocity += gravity * deltaTime;  // 速度受重力影响
                 particles[i].velocity *= 0.98;
                 particles[i].position += particles[i].velocity * deltaTime;
@@ -74,7 +74,7 @@ public:
 
                 // 更新粒子的拖尾位置
                 particles[i].historyPositions.push_back(particles[i].position);
-                if (particles[i].historyPositions.size() > 10) {  
+                if (particles[i].historyPositions.size() > 30) {  
                     particles[i].historyPositions.erase(particles[i].historyPositions.begin());
                 }
             }
@@ -108,8 +108,8 @@ public:
                 for (size_t j = 0; j < particles[i].historyPositions.size(); ++j) {
                     positions.push_back(particles[i].historyPositions[j]);
                     colors.push_back(particles[i].color);
-                    sizes.push_back(particles[i].size * 0.5f); 
-                    alphaValues.push_back(1.0f - static_cast<float>(j) / particles[i].historyPositions.size());  
+                    sizes.push_back(particles[i].size * 0.9f); 
+                    alphaValues.push_back(1.0f - 0.5f * static_cast<float>(j) / particles[i].historyPositions.size());  
                 }
             }
         }
