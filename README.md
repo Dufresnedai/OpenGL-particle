@@ -69,7 +69,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 **【光标设计】**
 接着为了使光标更优美，我们又优化了原有的鼠标光标，通过 glfwSetCursor 设置自定义光标，使其在窗口中显示。
-![1734350045058](image/README/1734350045058.png)
+![mc](resources/README/readme_image1.png)
 
 ```cpp
 GLFWcursor *createCursor(const char *imagePath)
@@ -114,7 +114,7 @@ GLFWcursor *createCursor(const char *imagePath)
 
 **【雪花粒子实现】**
 
-![1734351650715](image/README/1734351650715.png)
+![snow](resources/README/readme_image2.png)
 
 为了使整个氛围更有意境，我们又在烟花粒子的基础上实现了雪花粒子的插入，具体的设计和操作如下：
 
