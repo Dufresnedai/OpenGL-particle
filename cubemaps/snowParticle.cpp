@@ -15,39 +15,10 @@ struct snowParticle
 
 class SnowSystem {
 public:
-    const unsigned int NUM_PARTICLES = 2000;
+    const unsigned int NUM_PARTICLES = 4000;
     std::vector<snowParticle> particles;
     unsigned int VAO, VBO, texture;
 
-    // // 初始化粒子位置和速度
-    // SnowSystem()
-    // {
-    //     srand(static_cast<unsigned int>(time(0)));
-    //     for (unsigned int i = 0; i < NUM_PARTICLES; ++i)
-    //     {
-    //         particles.push_back({
-    //             glm::vec3((rand() % 200 - 100) / 100.0f,  // X: 在-1.0和1.0之间随机
-    //                     (rand() % 200) / 100.0f + 1.0f, // Y: 在1.0和3.0之间随机
-    //                     (rand() % 200 - 100) / 100.0f), // Z: 在-1.0和1.0之间随机
-    //             0.001f + (rand() % 100) / 1000000.0f      // 控制速度
-    //         });
-    //     }
-    // }
-
-    // // 更新粒子位置，超出屏幕则重置位置，使其从屏幕顶部重新下落，X 和 Z 方向随机，Y 方向在屏幕顶部
-    // void updateParticles()
-    // {
-    //     for (auto &particle : particles)
-    //     {
-    //         particle.position.y -= particle.speed;
-    //         if (particle.position.y < -1.0f)
-    //         {
-    //             particle.position.y = 1.0f;
-    //             particle.position.x = (rand() % 200 - 100) / 100.0f;
-    //             particle.position.z = (rand() % 200 - 100) / 100.0f;
-    //         }
-    //     }
-    // }
     // 初始化粒子位置和速度
     SnowSystem()
     {
@@ -55,11 +26,12 @@ public:
         for (unsigned int i = 0; i < NUM_PARTICLES; ++i)
         {
             // x, z: [-50.0, 50.0] 随机
-            // y: [1.0, 50.0] 随机
+            // y
             particles.push_back({
-                glm::vec3((rand() % 201 - 100) / 1.0f, 50.0f, 
-                        (rand() % 201 - 100) / 1.0f),   
-                0.001f + (rand() % 100) / 3.0f      // 控制速度
+                glm::vec3((rand() % 201 - 100) / 1.0f, 
+                          (rand() % 201 - 50) / 1.0f, 
+                          (rand() % 201 - 100) / 1.0f),   
+                8.0f + (rand() % 4) / 3.0f      // 控制速度
             });
         }
     }
@@ -69,15 +41,13 @@ public:
     {
         for (auto &particle : particles)
         {
-            // Y轴位置变化，确保粒子不断下落
-            // particle.position.y -= particle.speed; 掉帧
             particle.position.y -= particle.speed * deltaTime; 
-            // 如果粒子超出了 Y 轴的下限，则重置其 Y 位置为 50，并随机重新生成 X, Z 位置
-            if (particle.position.y < -50.0f) // 粒子下落到屏幕底部时重置
+            // 粒子下落到屏幕底部时重置
+            if (particle.position.y < -50.0f) 
             {
-                particle.position.y = 100.0f; // 重置 Y 位置到顶部
-                particle.position.x = (rand() % 201 - 100) / 1.0f; // X: 在 [-50, 50] 之间随机
-                particle.position.z = (rand() % 201 - 100) / 1.0f; // Z: 在 [-50, 50] 之间随机
+                particle.position.y = 100.0f; 
+                particle.position.x = (rand() % 201 - 100) / 1.0f; 
+                particle.position.z = (rand() % 201 - 100) / 1.0f; 
             }
         }
     }

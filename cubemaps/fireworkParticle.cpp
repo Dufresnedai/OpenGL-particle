@@ -50,12 +50,11 @@ public:
                 float theta = static_cast<float>(rand()) / RAND_MAX * 2.0f * glm::pi<float>();
                 float phi = static_cast<float>(rand()) / RAND_MAX * glm::pi<float>();
                 float x = sin(phi) * cos(theta);
-                float y = sin(phi) * sin(theta);
+                float y = sin(phi) * sin(theta) + 0.3f; // 增加一个常数，模拟烟花发射后爆炸会有基础向上速度
                 float z = cos(phi);
-                particles[i].velocity = glm::vec3(x, y, z) * (0.5f + static_cast<float>(rand()) / RAND_MAX * 40.0f);
-
+                particles[i].velocity = glm::vec3(x, y, z) * (1.0f + static_cast<float>(rand()) / RAND_MAX * 40.0f);
                 particles[i].color = color;
-                particles[i].lifetime = 0.75f;
+                particles[i].lifetime = 0.8f + (rand() % 10) / 20.0f;
                 break;
             }
         }
@@ -74,7 +73,7 @@ public:
 
                 // 更新粒子的拖尾位置
                 particles[i].historyPositions.push_back(particles[i].position);
-                if (particles[i].historyPositions.size() > 30) {  
+                if (particles[i].historyPositions.size() > 40) {  
                     particles[i].historyPositions.erase(particles[i].historyPositions.begin());
                 }
             }
@@ -84,13 +83,7 @@ public:
         }
     }
 
-    std::string tostring(glm::vec3 vec) {
-        std::stringstream string;
-        string << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
-        return string.str();
-    }
-
-    void Render(GLuint shaderProgram, GLuint VAO, GLuint VBO) {
+    void Render(GLuint shaderProgram, GLuint* VAO, GLuint* VBO) {
         std::vector<glm::vec3> positions;
         std::vector<glm::vec3> colors;
         std::vector<float> sizes;
@@ -98,13 +91,9 @@ public:
         for (int i = 0; i < maxParticles; ++i) {
             if (particles[i].lifetime > 0.0f) {
                 positions.push_back(particles[i].position);
-                // std::cout << "Positions: " << tostring(particles[i].position) << std::endl;
                 colors.push_back(particles[i].color);
-                // std::cout << "Color: " << tostring(particles[i].color) << std::endl;
                 sizes.push_back(particles[i].size);
-                // std::cout << "Sizes: " << particles[i].size << std::endl;
-                // 渲染粒子的拖尾
-                alphaValues.push_back(1.0f); // 粒子本身的透明度
+                alphaValues.push_back(1.0f); 
                 for (size_t j = 0; j < particles[i].historyPositions.size(); ++j) {
                     positions.push_back(particles[i].historyPositions[j]);
                     colors.push_back(particles[i].color);
@@ -114,14 +103,18 @@ public:
             }
         }
 
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, (positions.size() + colors.size() + sizes.size()) * sizeof(glm::vec3), nullptr, GL_STREAM_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+        size_t totalSize = positions.size() * sizeof(glm::vec3) + 
+                        colors.size() * sizeof(glm::vec3) + 
+                        sizes.size() * sizeof(float) + 
+                        alphaValues.size() * sizeof(float);
+        glBufferData(GL_ARRAY_BUFFER, totalSize, nullptr, GL_STREAM_DRAW);
         glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(glm::vec3), positions.data());
         glBufferSubData(GL_ARRAY_BUFFER, positions.size() * sizeof(glm::vec3), colors.size() * sizeof(glm::vec3), colors.data());
         glBufferSubData(GL_ARRAY_BUFFER, (positions.size() + colors.size()) * sizeof(glm::vec3), sizes.size() * sizeof(float), sizes.data());
         glBufferSubData(GL_ARRAY_BUFFER, (positions.size() + colors.size() + sizes.size()) * sizeof(float), alphaValues.size() * sizeof(float), alphaValues.data());
         glUseProgram(shaderProgram);
-        glBindVertexArray(VAO);
+        glBindVertexArray(*VAO);
         glDrawArrays(GL_POINTS, 0, positions.size());
     }
 };

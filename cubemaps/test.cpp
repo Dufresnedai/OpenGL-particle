@@ -27,7 +27,7 @@ const unsigned int SCR_HEIGHT = 600;
 
 // camera
 //Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
+Camera camera(glm::vec3(-5.0f, 0.0f, 0.0f));
 float lastX = (float)SCR_WIDTH / 2.0;
 float lastY = (float)SCR_HEIGHT / 2.0;
 bool firstMouse = true;
@@ -77,7 +77,7 @@ out float fragAlpha;
 uniform mat4 projection;
 uniform mat4 view;
 void main() {
-    gl_Position = projection * view * vec4(position, 1.0);
+    gl_Position = projection * view * vec4(position, 1.0f);
     fragColor = color;
     gl_PointSize = 5;
     fragAlpha = alpha; 
@@ -87,8 +87,8 @@ void main() {
 const char* fireworkfs = R"(
 #version 330 core
 in vec3 fragColor;
-out vec4 color;
 in float fragAlpha; 
+out vec4 color;
 void main() {
     color = vec4(fragColor, fragAlpha);
 }
@@ -186,7 +186,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+    srand((unsigned int)time(0));
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -403,6 +403,7 @@ int main()
     // -----------
     int framecount = 0;
     int center = 0;
+    unsigned int last_center = -1;
     while (!glfwWindowShouldClose(window))
     {
         // per-frame time logic
@@ -441,8 +442,8 @@ int main()
         glUseProgram(fireworkShader);
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view)); 
-        if (framecount % 1000 == 0) {
-            switch (rand() % 8) {
+        if (framecount % 300 == 0) {
+            switch (rand() % 6) {
                 case 0:    center = 0;  break;
                 case 1:    center = 1;  break;
                 case 2:    center = 2;  break;
@@ -451,74 +452,31 @@ int main()
                 case 5:    center = 5;  break;
                 default:    center = 6; break;
             }
-            glm::vec3 pos;
-            for(int i = 0; i < 1000; i++) {
-                // Emit new particles
-                switch (center) {
-                    case 0: {
-                        pos = glm::vec3(rand() % 10 / 15 + 6, rand() % 10 / 15 + 8, rand() % 10 / 20 + 6);
-                        break;
-                    }
-                    case 1: {
-                        pos = glm::vec3(rand() % 10 / 15 + 3, rand() % 10 / 15 + 7, rand() % 10 / 20 - 3);
-                        break;
-                    }
-                    case 2: {
-                        pos = glm::vec3(rand() % 10 / 15 - 2, rand() % 10 / 15 + 8, rand() % 10 / 20 - 2);
-                        break;
-                    }
-                    case 3: {
-                        if (rand() % 2 == 0) {
-                            pos = glm::vec3(rand() % 10 / 15 + 6, rand() % 10 / 15 + 8, rand() % 10 / 20 + 6);
-                        }
-                        else {
-                            pos = glm::vec3(rand() % 10 / 15 - 2, rand() % 10 / 15 + 8, rand() % 10 / 20 - 2);
-                        }
-                        break;
-                    }
-                    case 4: {
-                        if (rand() % 2 == 0) {
-                            pos = glm::vec3(rand() % 10 / 15 + 6, rand() % 10 / 15 + 8, rand() % 10 / 20 + 6);
-                        }
-                        else {
-                            pos = glm::vec3(rand() % 10 / 15 + 3, rand() % 10 / 15 + 7, rand() % 10 / 20 - 3);
-                        }
-                        break;
-                    }
-                    case 5: {
-                        if (rand() % 2 == 0) {
-                            pos = glm::vec3(rand() % 10 / 15 - 2, rand() % 10 / 15 + 8, rand() % 10 / 20 - 2);
-                        }
-                        else {
-                            pos = glm::vec3(rand() % 10 / 15 + 3, rand() % 10 / 15 + 7, rand() % 10 / 20 - 3);
-                        }
-                        break;
-                    }
-                    default: {
-                        switch (rand() % 3) {
-                            case 0: {
-                                pos = glm::vec3(rand() % 10 / 15 + 6, rand() % 10 / 15 + 8, rand() % 10 / 20 + 6);
-                                break;
-                            }
-                            case 1: {
-                                pos = glm::vec3(rand() % 10 / 15 + 3, rand() % 10 / 15 + 7, rand() % 10 / 20 - 3);
-                                break;
-                            }
-                            case 2: {
-                                pos = glm::vec3(rand() % 10 / 15 - 2, rand() % 10 / 15 + 8, rand() % 10 / 20 - 2);
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-                glm::vec3 color(rand() % 255 / 255.0f, rand() % 255 / 255.0f, rand() % 255 / 255.0f);
-                fireworksystem.Emit(pos, color);
+            // 保证相邻两次放烟花位置不一样
+            if(last_center == center){
+                center = (center + 1) % 7;
             }
-        }
+            last_center = center;
+            glm::vec3 pos;
+            for (int i = 0; i < 1000; i++) {
+                glm::vec3 pos;
+                switch (center) {
+                    case 0: pos = glm::vec3(-9.0f, 6.0f, -9.0f); break;
+                    case 1: pos = glm::vec3(-4.0f, 6.0f, -4.0f); break;
+                    case 2: pos = glm::vec3(9.0f, 6.0f, 9.0f); break;
+                    case 3: pos = glm::vec3(2.0f, 6.0f, 4.0f); break;
+                    case 4: pos = glm::vec3(7.0f, 6.0f, -7.0f); break;
+                    case 5: pos = glm::vec3(9.0f, 6.0f, 9.0f); break;
+                    default: pos = glm::vec3(7.0f, 6.0f, -7.0f); break;
+                }
 
+                glm::vec3 color(rand() % 255 / 255.0f, rand() % 255 / 255.0f, rand() % 255 / 255.0f);
+                fireworksystem.Emit(pos, color);  
+            }
+
+        }
         fireworksystem.Update(deltaTime);
-        fireworksystem.Render(fireworkShader, VAO, VBO);
+        fireworksystem.Render(fireworkShader, &VAO, &VBO);
 
         framecount += 1;
         // draw skybox as last
