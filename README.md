@@ -1,8 +1,8 @@
 # Computer Graphics Homework - Particle
 
-| 学号 | **22336090** | **21307210** | **22336180** | **22336223** |
-| :--: | ------------------ | ------------------ | ------------------ | ------------------ |
-| 姓名 | **黄集瑞**   | **傅祉珏**   | **马岱**     | **王晨宇**   |
+| 学号  | **22336090** | **21307210** | **22336180** | **22336223** |
+| :---: | ------------ | ------------ | ------------ | ------------ |
+| 姓名  | **黄集瑞**   | **傅祉珏**   | **马岱**     | **王晨宇**   |
 
 ## Introduction
 
@@ -21,7 +21,249 @@ This is our group's final assignment for computer graphics. We completed the des
 
 ## Procedure
 
-### （黄集瑞实现）
+### 天空盒构建+添加音效（黄集瑞实现）
+
+**【天空盒构建】**
+一开始进行天空盒构建时，想要通过HW3来实现，于是变想要考虑利用```box.obj```来进行贴图实现一个天空盒。但是，由于是直接在盒型的建模上进行贴图，所以尝试的贴图的边缘割裂感很强，会一下子让人觉得是处在一个盒子当中而不是一个自然的场景。在该方法解决无果之下，我只好找寻其他搭建天空盒的方法，于是我回到了课程的起点，[LearnOpenGL](https://learnopengl-cn.github.io/04%20Advanced%20OpenGL/06%20Cubemaps/)教程中去搭建天空盒
+
+* 摄像机系统：
+
+  这个实现可以使得我们通过鼠标以及键盘来控制移动以及视角变化，以便于来浏览整个天空盒的搭建。（这部分内容在之前的HW中均有体现）
+
+  ```c++
+  void processInput(GLFWwindow *window) {
+      if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+          glfwSetWindowShouldClose(window, true);
+  
+      float cameraSpeed = 2.5f * deltaTime;
+      if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+          camera.ProcessKeyboard(FORWARD, deltaTime);
+      if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+          camera.ProcessKeyboard(BACKWARD, deltaTime);
+      if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+          camera.ProcessKeyboard(LEFT, deltaTime);
+      if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+          camera.ProcessKeyboard(RIGHT, deltaTime);
+  }
+  
+  void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+      if (firstMouse) {
+          lastX = xpos;
+          lastY = ypos;
+          firstMouse = false;
+      }
+  
+      float xoffset = xpos - lastX;
+      float yoffset = lastY - ypos;
+      lastX = xpos;
+      lastY = ypos;
+  
+      camera.ProcessMouseMovement(xoffset, yoffset);
+  }
+  
+  void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+      camera.ProcessMouseScroll(yoffset);
+  }
+  ```
+
+* 渲染部分：
+
+  渲染的主体共包括两个部分：普通立方体以及天空盒
+
+  这里是使用shader绘制带有纹理的立方体（shader函数也在HW0让我们体验并且实验过）
+
+  ```c++
+  
+  shader.use();
+  glm::mat4 model = glm::mat4(1.0f);
+  glm::mat4 view = camera.GetViewMatrix();
+  glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+  shader.setMat4("model", model);
+  shader.setMat4("view", view);
+  shader.setMat4("projection", projection);
+  
+  // 绘制立方体
+  glBindVertexArray(cubeVAO);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, cubeTexture);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  ```
+
+  天空盒渲染：通过移除视角位移部分实现视觉一致性
+
+  ```c++
+  skyboxShader.use();
+  view = glm::mat4(glm::mat3(camera.GetViewMatrix()));
+  skyboxShader.setMat4("view", view);
+  skyboxShader.setMat4("projection", projection);
+  
+  // 绘制天空盒
+  glDepthFunc(GL_LEQUAL);
+  glBindVertexArray(skyboxVAO);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+  glDrawArrays(GL_TRIANGLES, 0, 36);
+  glDepthFunc(GL_LESS);
+  ```
+
+* OpenGL设置
+
+  设置深度测试和VAO/VBO管理
+
+  ```c++
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LESS);
+  
+  // 创建VAO/VBO
+  unsigned int cubeVAO, cubeVBO;
+  glGenVertexArrays(1, &cubeVAO);
+  glGenBuffers(1, &cubeVBO);
+  glBindVertexArray(cubeVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), &cubeVertices, GL_STATIC_DRAW);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+  ```
+
+* Shader使用
+
+  加载和使用着色器，并且传递纹理以及矩阵数据
+
+  ```c++
+  Shader shader("path/to/shader.vs", "path/to/shader.fs");
+  Shader skyboxShader("path/to/skybox.vs", "path/to/skybox.fs");
+  
+  // 设置纹理
+  shader.use();
+  shader.setInt("texture1", 0);
+  
+  skyboxShader.use();
+  skyboxShader.setInt("skybox", 0);
+  
+  ```
+
+* 加载需要的贴图资源
+
+  分别加载2D纹理以及立方体贴图
+
+  ```c++
+  unsigned int loadTexture(char const * path) {
+      unsigned int textureID;
+      glGenTextures(1, &textureID);
+  
+      int width, height, nrComponents;
+      unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+      if (data) {
+          GLenum format = GL_RGB;
+          if (nrComponents == 1)
+              format = GL_RED;
+          else if (nrComponents == 4)
+              format = GL_RGBA;
+  
+          glBindTexture(GL_TEXTURE_2D, textureID);
+          glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+          glGenerateMipmap(GL_TEXTURE_2D);
+  
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      } else {
+          std::cout << "Failed to load texture: " << path << std::endl;
+      }
+      stbi_image_free(data);
+  
+      return textureID;
+  }
+  // -----------------------------------------------------------
+  unsigned int loadCubemap(std::vector<std::string> faces) {
+      unsigned int textureID;
+      glGenTextures(1, &textureID);
+      glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+  
+      int width, height, nrChannels;
+      for (unsigned int i = 0; i < faces.size(); i++) {
+          unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+          if (data) {
+              glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+              stbi_image_free(data);
+          } else {
+              std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+              stbi_image_free(data);
+          }
+      }
+      glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+      glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+  
+      return textureID;
+  }
+  ```
+
+* 渲染循环
+
+  就是在每个HW中我们都可以遇到的主渲染逻辑，可以在这里面处理输入、渲染物体以及实现天空盒
+
+  ```c++
+  while (!glfwWindowShouldClose(window)) {
+      float currentFrame = glfwGetTime();
+      deltaTime = currentFrame - lastFrame;
+      lastFrame = currentFrame;
+  
+      processInput(window);
+  
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  
+      // 渲染物体
+      shader.use();
+      ...
+      glBindVertexArray(cubeVAO);
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+  
+      // 渲染天空盒
+      skyboxShader.use();
+      ...
+      glBindVertexArray(skyboxVAO);
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+  
+      glfwSwapBuffers(window);
+      glfwPollEvents();
+  }
+  ```
+
+  **【音效添加】**
+
+  在添加音效的时候，也是参考了这个LearnOpenGL教程中的音效实现，选择了```irrklang```库来具体实现。但是在查询用法时才了解到如果使用minggw是无法实现的，必须得用MSVC的编译器才可以使用，而之前的环境以及队员们的都是在我搭建好的vscode框架中写代码的，所以我只好利用vscode重新配MSVC的环境，这也是为什么**仓库里面有一个实现的压缩包，那个压缩包就是我搭建好的环境，主体代码逻辑看仓库上的就可以了，我只是在对应的地方添加上了音效逻辑。**
+
+  * 添加雪花音效：
+
+    由于我的队员实现了雪花的粒子效果，所以我添加了下雪时的音效来模拟对应的下雪。
+
+  ```c++
+  // 初始化引擎
+  ISoundEngine *SoundEngine = createIrrKlangDevice();
+  
+  ISound *backgroundmusic = SoundEngine->play2D("D:\\MSVC_ORIGIN\\src\\falling_snow.mp3", GL_TRUE);
+  ```
+
+  * 添加烟花爆炸音效：
+
+  ```c++
+  // 使用3D音效
+  ISound *firework = SoundEngine->play3D("D:\\MSVC_ORIGIN\\src\\firework.mp3", vec3df(pos.x, pos.y, pos.z), false, false, true);
+  // 设置音效有效的最近以及最远距离
+  firework->setMinDistance(10.f);
+  firework->setMaxDistance(35.0f);
+  firework->setIsPaused(false);
+  // 设置摄像机的原点位置
+  SoundEngine->setListenerPosition(vec3df(-5.0f, 0.0f, -5.0f), vec3df(0.0f, 0.0f, -1.0f));
+  ```
+
+  一开始本来也是想要使用2D来实现的，但是我们烟花绽放的位置是随机的，所以经常会找不到烟花在哪里绽放，所以我使用了3D音效这样可以达到"听声辨位"，但是目前还是有些问题，还等待者后续提交的再一次优化。
 
 ### 窗口调整+光标设计+雪花粒子实现（马岱实现）
 
