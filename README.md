@@ -19,6 +19,8 @@ This is our group's final assignment for computer graphics. We completed the des
 * 实现辉光特效：使用高斯模糊之类的后处理技术实现烟花周围的光晕特效；
 * 添加音效：在烟花爆炸的时候添加一个Boom的音效。
 
+## Attention！！
+打开仓库，你会发现有一段的代码实现，但是还有一个压缩包（具体原因在音效添加部分中有解释），如果要运行我们的程序，请将该压缩包直接解压到D盘，然后点进去build，接着是debug，你会发现一个HelloGL.exe，点开这个就可以运行啦！
 ## Procedure
 
 ### 天空盒构建+添加音效（黄集瑞实现）
