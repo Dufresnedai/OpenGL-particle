@@ -218,4 +218,134 @@ void main()
 
 ---
 
-### （王晨宇实现）
+### 烟花实现（王晨宇 && 傅祉珏实现）
+
+**【烟花粒子结构体】**
+
+一个烟花粒子结构体如下：
+```cpp
+struct FireworkParticle {
+    glm::vec3 position;
+    glm::vec3 velocity;
+    glm::vec3 color;
+    float lifetime;
+    float size;
+    std::vector<glm::vec3> historyPositions;  
+    void reset() {
+        position = glm::vec3(0.0f, 0.0f, 0.0f);
+        velocity = glm::vec3(0.0f, 0.0f, 0.0f);
+        color = glm::vec3(1.0f, 1.0f, 1.0f);
+        lifetime = -1.0f;
+        size = 1.0f;
+        historyPositions.clear();  
+    }
+};
+```
+其中，各变量成员含义为：
+
+- position：烟花粒子的初始位置
+- velocity：烟花粒子的速度
+- color：烟花粒子的颜色
+- lifetime：粒子的生存时间，当其小于等于0时，烟花粒子消失
+- size：烟花粒子的大小，这里也可以在着色器直接设置
+- historyPositions：用于记录烟花历史位置的数组，用于实现烟花粒子拖尾效果
+  
+
+**【烟花系统类】**
+
+创建烟花系统类，便于管理所有烟花粒子，其定义如下：
+```cpp
+class FireworkSystem {
+public:
+    int maxParticles;
+    std::vector<FireworkParticle> particles;
+    FireworkSystem(int maxParticles);
+    void Emit(const glm::vec3& position, const glm::vec3& color)；
+    void Update(float deltaTime)；
+    void Render(GLuint shaderProgram, GLuint* VAO, GLuint* VBO);
+};
+```
+
+`Emit`函数用于初始化烟花爆炸，初始化一个粒子，初始化其位置、速度、颜色和生存时间。这里舒勇数组中第一个消亡无用的粒子。其中，颜色通过三角函数计算，赋予各维度的值如下x, z方向的基础速度范围是 [-1, 1]，赋予y方向（高度）的基础速度是[-0.7, 1.3]，这里y轴速度相对x, z轴的速度偏正，是因为使更多烟花粒子的初始速度偏向上，因此模拟烟花发射爆炸时向上的初速度。
+```cpp
+void Emit(const glm::vec3& position, const glm::vec3& color) {
+    for (int i = 0; i < maxParticles; ++i) {
+        if (particles[i].lifetime <= 0.0f) {
+            particles[i].position = position;
+            float theta = static_cast<float>(rand()) / RAND_MAX * 2.0f * glm::pi<float>();
+            float phi = static_cast<float>(rand()) / RAND_MAX * glm::pi<float>();
+            float x = sin(phi) * cos(theta);
+            float y = sin(phi) * sin(theta) + 0.3f; 
+            float z = cos(phi);
+            particles[i].velocity = glm::vec3(x, y, z) * (1.0f + static_cast<float>(rand()) / RAND_MAX * 40.0f);
+            particles[i].color = color;
+            particles[i].lifetime = 0.8f + (rand() % 10) / 20.0f;
+            break;
+        }
+    }
+}
+```
+
+`Update`函数用于每一帧更新粒子信息，如果粒子生存时间小于等于0，则重置粒子；否则，更新粒子信息，这里包括更新粒子速度，速度会逐渐减小，此外，为了模拟重力作用，y轴速度还会额外减小一部份。此外还要更新粒子的历史位置，更新粒子的历史位置，这里允许最大存储数量为40，当超过这个数目时，需要替代最旧的历史位置。
+```cpp
+void Update(float deltaTime) {
+    for (int i = 0; i < maxParticles; ++i) {
+        if (particles[i].lifetime > 0.0f) {
+            particles[i].lifetime -= deltaTime;
+            // 假设粒子的加速度为重力加速度
+            glm::vec3 gravity(0.0f, -20.0f, 0.0f); // 重力加速度，向下
+            particles[i].velocity += gravity * deltaTime;  // 速度受重力影响
+            particles[i].velocity *= 0.98;
+            particles[i].position += particles[i].velocity * deltaTime;
+            particles[i].size *= 0.99f;          
+
+            // 更新粒子的拖尾位置
+            particles[i].historyPositions.push_back(particles[i].position);
+            if (particles[i].historyPositions.size() > 40) {  
+                particles[i].historyPositions.erase(particles[i].historyPositions.begin());
+            }
+        }
+        else{
+            particles[i].reset();
+        }
+    }
+}
+```
+
+`Render`渲染一个粒子效果，显示粒子的变化。该函数对于实现效果较为重要的部分是粒子透明度的变化，每一个粒子历史位置都对应着一个透明度（即$\alpha$通道），当粒子越旧，$\alpha$ 越接近0，其就越透明；当粒子越新，$\alpha$ 越接近1，其就越不透明。这样实现的粒子效果更加接近现实。
+```cpp
+void Render(GLuint shaderProgram, GLuint* VAO, GLuint* VBO) {
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec3> colors;
+    std::vector<float> sizes;
+    std::vector<float> alphaValues;  // 用来存储透明度
+    for (int i = 0; i < maxParticles; ++i) {
+        if (particles[i].lifetime > 0.0f) {
+            positions.push_back(particles[i].position);
+            colors.push_back(particles[i].color);
+            sizes.push_back(particles[i].size);
+            alphaValues.push_back(1.0f); 
+            for (size_t j = 0; j < particles[i].historyPositions.size(); ++j) {
+                positions.push_back(particles[i].historyPositions[j]);
+                colors.push_back(particles[i].color);
+                sizes.push_back(particles[i].size * 0.9f); 
+                alphaValues.push_back(1.0f - 0.5f * static_cast<float>(j) / particles[i].historyPositions.size());  
+            }
+        }
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+    size_t totalSize = positions.size() * sizeof(glm::vec3) + 
+                    colors.size() * sizeof(glm::vec3) + 
+                    sizes.size() * sizeof(float) + 
+                    alphaValues.size() * sizeof(float);
+    glBufferData(GL_ARRAY_BUFFER, totalSize, nullptr, GL_STREAM_DRAW);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(glm::vec3), positions.data());
+    glBufferSubData(GL_ARRAY_BUFFER, positions.size() * sizeof(glm::vec3), colors.size() * sizeof(glm::vec3), colors.data());
+    glBufferSubData(GL_ARRAY_BUFFER, (positions.size() + colors.size()) * sizeof(glm::vec3), sizes.size() * sizeof(float), sizes.data());
+    glBufferSubData(GL_ARRAY_BUFFER, (positions.size() + colors.size() + sizes.size()) * sizeof(float), alphaValues.size() * sizeof(float), alphaValues.data());
+    glUseProgram(shaderProgram);
+    glBindVertexArray(*VAO);
+    glDrawArrays(GL_POINTS, 0, positions.size());
+}
+```
