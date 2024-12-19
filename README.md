@@ -264,7 +264,7 @@ public:
 };
 ```
 
-`Emit`函数用于初始化烟花爆炸，初始化一个粒子，初始化其位置、速度、颜色和生存时间。这里舒勇数组中第一个消亡无用的粒子。其中，颜色通过三角函数计算，赋予各维度的值如下x, z方向的基础速度范围是 [-1, 1]，赋予y方向（高度）的基础速度是[-0.7, 1.3]，这里y轴速度相对x, z轴的速度偏正，是因为使更多烟花粒子的初始速度偏向上，因此模拟烟花发射爆炸时向上的初速度。
+`Emit`函数用于初始化烟花爆炸，初始化一个粒子，初始化其位置、速度、颜色和生存时间。这里使用数组中第一个消亡无用的粒子。其中，颜色通过三角函数计算，赋予各维度的值如下x, z方向的基础速度范围是 [-1, 1]，赋予y方向（高度）的基础速度是[-0.7, 1.3]，这里y轴速度相对x, z轴的速度偏正，是因为使更多烟花粒子的初始速度偏向上，因此模拟烟花发射爆炸时向上的初速度。
 ```cpp
 void Emit(const glm::vec3& position, const glm::vec3& color) {
     for (int i = 0; i < maxParticles; ++i) {
@@ -346,4 +346,46 @@ void Render(GLuint shaderProgram, GLuint* VAO, GLuint* VBO) {
     glBindVertexArray(*VAO);
     glDrawArrays(GL_POINTS, 0, positions.size());
 }
+```
+
+
+在`main`函数的窗口当中，我们对于每一帧的烟花做了如下的处理。我们首先构建了`framecount`变量，用于计算不同的帧数，以控制烟花绽放的时机。我们仅在`framecount % 300 == 0`时完成烟花的绽放，即每300帧进行一次烟花的绽放。随后我们完成不同位置的随机化。我们使用随机数对烟花的绽放中心进行随机的初始化，但是为了保证烟花每次绽放的位置不一样，我们还对位置信息进行了记录。如果烟花的绽放的位置与上一次的相同，则强行给它换一个绽放中心，这样子就能够确保每次烟花绽放的绽放中心都处于一个不同的位置。最后对颜色进行随机化，即可完成每个粒子的初始化。而为了更好地表示烟花绽放的样子，我们在一帧内一次性生成了1000个粒子，这样子就能模拟烟花在天空中炸开的模样。
+```cpp
+if (framecount % 300 == 0) {
+    switch (rand() % 6) {
+        case 0:    center = 0;  break;
+        case 1:    center = 1;  break;
+        case 2:    center = 2;  break;
+        case 3:    center = 3;  break;
+        case 4:    center = 4;  break;
+        case 5:    center = 5;  break;
+        default:    center = 6; break;
+    }
+    // 保证相邻两次放烟花位置不一样
+    if(last_center == center){
+        center = (center + 1) % 7;
+    }
+    last_center = center;
+    glm::vec3 pos;
+    for (int i = 0; i < 1000; i++) {
+        glm::vec3 pos;
+        switch (center) {
+            case 0: pos = glm::vec3(-9.0f, 6.0f, -9.0f); break;
+            case 1: pos = glm::vec3(-4.0f, 6.0f, -4.0f); break;
+            case 2: pos = glm::vec3(9.0f, 6.0f, 9.0f); break;
+            case 3: pos = glm::vec3(2.0f, 6.0f, 4.0f); break;
+            case 4: pos = glm::vec3(7.0f, 6.0f, -7.0f); break;
+            case 5: pos = glm::vec3(9.0f, 6.0f, 9.0f); break;
+            default: pos = glm::vec3(7.0f, 6.0f, -7.0f); break;
+        }
+
+        glm::vec3 color(rand() % 255 / 255.0f, rand() % 255 / 255.0f, rand() % 255 / 255.0f);
+        fireworksystem.Emit(pos, color);  
+    }
+
+}
+fireworksystem.Update(deltaTime);
+fireworksystem.Render(fireworkShader, &VAO, &VBO);
+
+framecount += 1;
 ```
