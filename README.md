@@ -23,8 +23,6 @@ This is our group's final assignment for computer graphics. We completed the des
 
 ### （黄集瑞实现）
 
-### （傅祉珏实现）
-
 ### 窗口调整+光标设计+雪花粒子实现（马岱实现）
 
 **【窗口调整】**
